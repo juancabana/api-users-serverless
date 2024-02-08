@@ -1,0 +1,83 @@
+service: serverless-api-users
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:*"
+        - "sns:*"
+      Resource: "*"
+
+
+functions:
+  api:
+    handler: src/index.handler
+    events:
+      - httpApi:
+          path: /
+          method: get
+  createUser:
+    handler: src/createUser.createUser
+    environment:
+      USERS_TABLE: ${ssm:/players-table/name}
+    events:
+      - httpApi:
+          path: /users
+          method: post
+  getUsers:
+    handler: src/getUsers.getUsers
+    environment:
+      USERS_TABLE: ${ssm:/players-table/name}
+    events:
+      - httpApi:
+          path: /users
+          method: get
+  deleteUser:
+    handler: src/deleteUser.deleteUser
+    environment:
+      USERS_TABLE: ${ssm:/players-table/name}
+    events:
+      - httpApi:
+          path: /users/{id}
+          method: delete
+  putPlayer:
+    handler: src/putPlayer.putPlayer
+    environment:
+      USERS_TABLE: ${ssm:/players-table/name}
+    events:
+      - httpApi:
+          path: /users/{id}
+          method: put
+  sendEmail:
+    handler: src/sendMail.sendMail 
+    environment:
+      SNS_TOPIC_ARN: arn:aws:sns:us-east-1:339712931009:mySNSTopic
+    events:
+      - http:
+          path: /send-email
+          method: post
+          cors: true
+	
+resources: # CloudFormation template syntax
+  Resources:
+    usersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${ssm:/players-table/name}
+        AttributeDefinitions:
+          - AttributeName: 'id'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'id'
+            KeyType: 'HASH'
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    mySNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: mySNSTopic
