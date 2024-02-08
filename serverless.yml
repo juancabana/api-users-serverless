@@ -12,7 +12,6 @@ provider:
         - "sns:*"
       Resource: "*"
 
-
 functions:
   api:
     handler: src/index.handler
@@ -53,18 +52,26 @@ functions:
           path: /users/{id}
           method: put
   sendEmail:
-    handler: src/sendMail.sendMail 
+    handler: src/sendMail.sendMail
     environment:
       SNS_TOPIC_ARN: arn:aws:sns:us-east-1:339712931009:mySNSTopic
     events:
       - http:
           path: /send-email
           method: post
+          authorizer: 
+            type: COGNITO_USER_POOLS
+            authorizerId: { Ref: MyCognitoAuthorizer }
           cors: true
 	
 resources: # CloudFormation template syntax
   Resources:
-    usersTable:
+    ApiGatewayHttpApi:
+      Type: AWS::ApiGatewayV2::Api
+      Properties:
+        Name: MyHttpApi
+        ProtocolType: HTTP
+    usersTable: 
       Type: AWS::DynamoDB::Table
       Properties:
         TableName: ${ssm:/players-table/name}
@@ -81,3 +88,13 @@ resources: # CloudFormation template syntax
       Type: AWS::SNS::Topic
       Properties:
         TopicName: mySNSTopic
+    MyCognitoAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        RestApiId:
+          Ref: ApiGatewayHttpApi
+        Name: nt0kor
+        Type: COGNITO_USER_POOLS
+        IdentitySource: method.request.header.Authorization
+        ProviderARNs:
+          - arn:aws:cognito-idp:us-east-1:339712931009:userpool/us-east-1_5PD481bS5
